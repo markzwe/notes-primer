@@ -2,10 +2,10 @@ import mongoose from "mongoose";
 const noteSchema = new mongoose.Schema(
   {
     text: {
-        type: String,
-        required: true,
-        trim: true,
-        maxlength: 280
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 280
     }
   },
   { timestamps: true }

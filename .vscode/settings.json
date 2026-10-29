@@ -1,0 +1,8 @@
+{
+    "mermaid.vscode.aiExportName": false,
+    "mermaidChart.showGenerateDiagramCodeLens": false,
+    "mermaidChart.preCommitSync.enabled": false,
+    "mermaidChart.createDiagramFromStage.enabled": false,
+    "mermaidChart.aiSkills.promptOnDetect": false,
+    "mermaidChart.aiSkills.enabled": false
+}
