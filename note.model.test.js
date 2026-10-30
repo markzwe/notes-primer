@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Note } from './models/Note.js';
+import { Note } from './models/Notes.js';
 
 test('trims valid text', () => {
     const note = new Note({ text: ' Hello ' });

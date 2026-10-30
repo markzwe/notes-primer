@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { signAccessToken, verifyAccessToken } from './token.js';
+import { randomBytes } from 'node:crypto';
+process.env.JWT_SECRET = randomBytes(32).toString('hex');
+const { signAccessToken, verifyAccessToken } = await import('./token.js');
 const id = '0123456789abcdef01234567';
 test('issued token verifies', () => {
     assert.equal(verifyAccessToken(signAccessToken(id)), id);
