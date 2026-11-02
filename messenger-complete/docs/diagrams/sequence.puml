@@ -1,0 +1,36 @@
+@startuml
+hide footbox
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+skinparam defaultFontSize 13
+skinparam maxMessageSize 240
+title Messenger - Sending a Message
+
+actor "Sender through browser" as Sender
+participant "Messaging service" as Service
+database "Messenger data store" as Store
+
+Sender -> Service : Send message(sessionID, conversation ID, text)
+Service -> Store : Read session and conversation participants
+Store --> Service : Session status, user ID, participant records
+
+alt Invalid session or sender is not a participant
+    Service --> Sender : Access denied; no message saved
+else Text is empty or whitespace only
+    Service --> Sender : Validation error; no message saved
+else Authenticated participant and nonblank text
+    Service -> Store : Save message with authenticated sender and date/time
+    alt Storage fails before saving
+        Store --> Service : Save failed
+        Service --> Sender : Send failed; no success confirmation
+    else Message is saved
+        Store --> Service : Saved message ID and acceptance order
+        Service --> Sender : Send confirmed
+    end
+end
+
+note over Sender, Service
+Recipients open or refresh later
+to retrieve messages (FR-07).
+end note
+@enduml

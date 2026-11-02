@@ -1,0 +1,170 @@
+MESSENGER APP REQUIREMENTS
+==========================
+
+Purpose
+-------
+Adapt Notes Primer into a messenger app with separate frontend and backend
+folders. The first version supports private, one-to-one text conversations.
+This is a project specification, not a pip-installable dependency file.
+JavaScript dependencies are declared in each folder's package.json.
+
+1. Project structure
+--------------------
+- frontend/: React application, Vite configuration, and frontend package.json.
+- backend/: Express application, database models, routes, middleware,
+  shared application logic, Socket.IO handlers, and backend package.json.
+- Keep a separate package-lock.json for each application.
+- Store backend secrets in backend/.env.local and exclude them from Git.
+
+2. Technology
+-------------
+- Runtime: Node.js 22.18 or newer; package manager: npm.
+- Frontend: React, Vite, and socket.io-client.
+- Backend: Express, Mongoose, bcrypt, jsonwebtoken, and socket.io.
+- Database: MongoDB; Docker Compose may provide the local database.
+- Use the dependency versions declared in frontend/package.json and
+  backend/package.json.
+
+3. Accounts and authentication
+------------------------------
+- Users can register, log in, and log out.
+- Usernames must be unique and normalized to lowercase.
+- Preserve the existing username rule: 3-32 characters, beginning with a
+  letter, followed by lowercase letters, digits, or underscores.
+- Preserve the existing password rule: at least 12 characters and no more
+  than 72 UTF-8 bytes.
+- Store bcrypt password hashes; never return passwords or password hashes.
+- Successful login returns public user details and a signed access token.
+- Preserve the existing 15-minute token lifetime for the first version.
+- Protected HTTP requests use Authorization: Bearer <accessToken>.
+- Socket connections authenticate with the access token during connection.
+- Expired or invalid sessions require the user to log in again.
+
+4. Conversations
+----------------
+- A user can start a conversation with another registered username.
+- Each conversation contains exactly two distinct participants.
+- Starting a conversation with the same person returns the existing
+  conversation rather than creating a duplicate, including concurrent requests.
+- Users can list only conversations in which they participate.
+- The conversation list identifies the other participant.
+- Nonparticipants cannot read, send to, or subscribe to a conversation.
+
+5. Messages
+-----------
+- A participant can send a text message containing 1-280 characters after trim.
+- The backend derives the sender ID from the authenticated session.
+- Store each message's conversation ID, sender ID, body, and timestamps.
+- Save each message to MongoDB before acknowledging success or broadcasting it.
+- Load saved messages in pages of 20, using a cursor for older messages.
+- Use creation time and document ID for stable ordering.
+- Display loaded messages in chronological order in the conversation panel.
+- Merge messages by their database ID to avoid displaying duplicates when
+  HTTP responses, live events, and history contain the same message.
+
+6. HTTP API
+-----------
+POST /api/auth/register
+  Input: username, password.
+  Result: newly created public user details.
+
+POST /api/auth/login
+  Input: username, password.
+  Result: public user details and accessToken.
+
+POST /api/conversations
+  Input: the other participant's username.
+  Result: existing or newly created conversation.
+
+GET /api/conversations
+  Result: conversations belonging to the authenticated user.
+
+POST /api/conversations/:id/messages
+  Input: body.
+  Result: saved message.
+
+GET /api/conversations/:id/messages?before=<messageId>
+  Result: a message page and nextBefore cursor, or null when no older page exists.
+
+GET /api/health
+  Result: confirms that the HTTP application is responding.
+
+GET /api/ready
+  Result: confirms whether the database is connected.
+
+All conversation and message endpoints require authentication.
+Validate input and return clear JSON errors with appropriate HTTP status codes.
+
+7. Live updates
+---------------
+- Use HTTP for sending messages and retrieving saved data.
+- Use Socket.IO to notify connected participants about newly saved messages.
+- conversation:join: verify membership, then join the conversation's room.
+- conversation:leave: leave the selected conversation's room.
+- message:new: broadcast the saved message to subscribers in that room.
+- Do not implement a second socket-based message-writing path in version one.
+- Disconnect sockets when their access token expires.
+- After joining or reconnecting, retrieve saved messages through HTTP to
+  recover messages missed while disconnected.
+- Show connection status; HTTP sending remains available when sockets are
+  disconnected if the API and authenticated session are still available.
+
+8. Backend responsibilities
+---------------------------
+- server.js: connect to MongoDB, initialize required indexes, start listening.
+- app.js: configure Express, JSON parsing, routes, and Socket.IO.
+- middleware/requireAuth.js: verify HTTP tokens and attach authenticated identity.
+- auth/: username/password validation and token signing/verification.
+- models/: User, Conversation, and Message schemas and indexes.
+- routes/: receive HTTP requests and construct responses.
+- services/sendMessage.js: check membership, validate text, and save a message.
+- realtime/chatSockets.js: authenticate connections and manage subscriptions.
+- Keep reusable application rules separate from HTTP response handling.
+- Use one shared token-verification function for HTTP and sockets.
+
+9. Frontend requirements
+------------------------
+- Provide registration and login screens.
+- Provide a conversation list and a form to start a conversation by username.
+- Provide a message panel with sender, text, and timestamp.
+- Provide a send form and a control to load older messages.
+- Show loading, saving, connection, empty, and error states.
+- Preserve the typed message when sending fails.
+- After logout, disconnect sockets and clear displayed private data.
+- During local development, proxy /api and /socket.io from Vite to the backend.
+
+10. Existing project mapping
+----------------------------
+models/PrimerUser.js          -> models/User.js
+models/StudyBoard.js          -> models/Conversation.js
+models/StudyEntry.js          -> models/Message.js
+routes/study.js               -> routes/conversations.js
+study/appendEntry.js          -> services/sendMessage.js
+realtime/studySockets.js      -> realtime/chatSockets.js
+client/src/studyApi.js        -> frontend/src/api.js
+client/src/BoardList.jsx      -> frontend/src/ConversationList.jsx
+client/src/StudyBoardPanel.jsx -> frontend/src/ConversationPanel.jsx
+client/src/EntryList.jsx      -> frontend/src/MessageList.jsx
+
+Adapt validation, field names, imports, routes, and events during migration;
+renaming files alone does not implement the messenger requirements.
+The older example-note and private-note features are not part of version one.
+
+11. Acceptance checks
+---------------------
+- Alice and Bob register and log in in separate browser sessions.
+- Alice starts a conversation with Bob; Bob can list and open it.
+- Reopening that conversation does not create a second one.
+- Either participant can send a message, and the other sees it live.
+- Refreshing preserves messages, and older history can be loaded.
+- Reconnecting recovers missed messages without duplicate display.
+- A third user cannot read, write, or subscribe to Alice and Bob's conversation.
+- Failed sends leave the draft available for retry.
+- Expired tokens are rejected for HTTP requests and socket access.
+- Backend tests, frontend lint, and frontend build pass.
+
+12. Later features
+------------------
+Group conversations, image/file uploads, typing indicators, online presence,
+read receipts, message editing/deletion, notifications, and token refresh are
+future work after the first version passes its acceptance checks.

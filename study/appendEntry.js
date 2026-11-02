@@ -8,6 +8,7 @@ export function studyBoardRoom(boardId) {
     return `study:board:${boardId}`;
 }
 
+// Append a study entry to a board, ensuring the board exists and the user is a member.
 export async function appendStudyEntry(boardId, userId, rawBody) {
     // Reject malformed IDs before querying, and use the same result for unknown
     // and inaccessible boards so callers cannot distinguish between them.

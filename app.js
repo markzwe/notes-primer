@@ -38,6 +38,7 @@ app.get('/api/ready', (_req, res) => {
     .json({ status: ready ? 'ready' : 'unavailable' });
 });
 
+// Study routes require both a live database and an authenticated user.
 app.use('/api/study', requireDatabase, requireAuth, studyRouter);
 
 

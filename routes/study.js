@@ -8,7 +8,7 @@ import { appendStudyEntry, studyBoardRoom } from '../study/appendEntry.js';
 export const studyRouter = Router();
 const objectIdPattern = /^[0-9a-f]{24}$/i;
 
-// Returns a viewable representation of a study board.
+// Keep database documents internal and expose stable API fields.
 function viewBoard(doc) {
     return {
         id: doc._id.toString(), title: doc.title,
@@ -16,7 +16,7 @@ function viewBoard(doc) {
         createdAt: doc.createdAt
     };
 }
-// Returns a viewable representation of a study entry.
+
 function viewEntry(doc) {
     return {
         id: doc._id.toString(), boardId: doc.board.toString(),
@@ -25,7 +25,7 @@ function viewEntry(doc) {
     };
 }
 
-// Returns the study board if the user is a member, otherwise null.
+// Find a board only if the requested ID is valid and the user belongs to it.
 async function memberBoard(boardId, userId) {
     if (objectIdPattern.test(boardId) === false) return null;
     return StudyBoard.findOne({
@@ -34,16 +34,14 @@ async function memberBoard(boardId, userId) {
     }).lean();
 }
 
-// Creates a new study board with the given title and invitees.
 studyRouter.post('/boards', async (req, res, next) => {
-
     const title = normalizedTitle(req.body?.title);
     const names = normalizedInvitees(req.body?.invitees);
     if (title === null || names === null) {
         return res.status(400).json({ error: 'invalid board input' });
     }
+
     try {
-        // Continue inside the open try block
         const invitees = await PrimerUser.find({
             username: { $in: names }
         }).select('_id username').lean();
@@ -51,7 +49,7 @@ studyRouter.post('/boards', async (req, res, next) => {
             invitees.some(user => user._id.toString() === req.auth.userId)) {
             return res.status(400).json({ error: 'invitee unavailable' });
         }
-        // Finish the route opened on the earlier slides
+
         const board = await StudyBoard.create({
             title,
             createdBy: req.auth.userId,
@@ -63,6 +61,7 @@ studyRouter.post('/boards', async (req, res, next) => {
     }
 });
 
+// List boards the authenticated user belongs to, newest first.
 studyRouter.get('/boards', async (req, res, next) => {
     try {
         const boards = await StudyBoard.find({
@@ -76,6 +75,7 @@ studyRouter.get('/boards', async (req, res, next) => {
     }
 });
 
+// Save an entry, then broadcast it to connected members of that board.
 studyRouter.post('/boards/:boardId/entries', async (req, res, next) => {
     try {
         const result = await appendStudyEntry(
@@ -95,6 +95,7 @@ studyRouter.post('/boards/:boardId/entries', async (req, res, next) => {
     }
 });
 
+// Return board history in pages of five, using an optional cursor for older entries.
 studyRouter.get('/boards/:boardId/entries', async (req, res, next) => {
     try {
         const board = await memberBoard(req.params.boardId, req.auth.userId);
@@ -103,7 +104,6 @@ studyRouter.get('/boards/:boardId/entries', async (req, res, next) => {
         }
         const before = req.query.before;
         const query = { board: board._id };
-        // Continue inside the open try block
         if (before !== undefined) {
             if (typeof before !== 'string' || !objectIdPattern.test(before)) {
                 return res.status(400).json({ error: 'invalid cursor' });
@@ -119,7 +119,7 @@ studyRouter.get('/boards/:boardId/entries', async (req, res, next) => {
                 { createdAt: anchor.createdAt, _id: { $lt: anchor._id } }
             ];
         }
-        // Finish the history route opened earlier
+
         const docs = await StudyEntry.find(query)
             .sort({ createdAt: -1, _id: -1 }).limit(6).lean();
         const page = docs.slice(0, 5);

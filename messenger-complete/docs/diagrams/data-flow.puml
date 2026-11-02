@@ -1,0 +1,35 @@
+@startuml
+!pragma layout smetana
+top to bottom direction
+skinparam nodesep 65
+skinparam ranksep 65
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+skinparam defaultFontSize 13
+skinparam ArrowColor #475569
+skinparam packageStyle rectangle
+title Messenger - Message and History Data Flows
+
+rectangle "User" as U <<external>>
+
+usecase "P1: Validate\nconversation access" as P1 <<process>>
+usecase "P2: Validate and\nstore message" as P2 <<process>>
+usecase "P3: Retrieve and\norder history" as P3 <<process>>
+database "D1: Sessions" as D1
+database "D2: Conversations\nand participants" as D2
+database "D3: Messages" as D3
+
+D1 --> P1 : Session status\nand user identity
+D2 --> P1 : Conversation\nparticipant records
+P1 --> P2 : Authorized message,\nuser ID, conversation ID
+P1 --> P3 : Authorized\nhistory request
+P2 --> D3 : Nonblank message,\nsender, time
+D3 --> P2 : Storage result\nand acceptance order
+P3 --> D3 : Conversation\nidentifier
+D3 --> P3 : Saved\nmessage records
+
+U --> P1 : Session, conversation ID,\nmessage or history request
+P1 --> U : Access denial
+P2 --> U : Send confirmation\nor error
+P3 --> U : Ordered history with\nsender and date/time
+@enduml
